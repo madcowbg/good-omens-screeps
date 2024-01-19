@@ -5,12 +5,12 @@ import { IllegalArgumentError } from "./error/IllegalArgumentError";
 export class Optional<Type> implements Persistence<Type | undefined> {
   private readonly child: Persistence<Type>;
 
-  constructor(child: Persistence<Type>) {
+  public constructor(child: Persistence<Type>) {
     this.child = child;
   }
 
   public encode(value?: Type): string {
-    if (value == undefined) {
+    if (value == null) {
       return "-";
     } else {
       return "+" + this.child.encode(value);
