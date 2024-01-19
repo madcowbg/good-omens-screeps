@@ -1,9 +1,9 @@
 import { Result } from "./Result";
 import { StillRunning } from "./StillRunning";
-import { Action } from "./Action";
 import { Restore } from "./Restore";
 import { Decorator } from "./Decorator";
 import { assert } from "chai";
+import { Task } from "./Task";
 
 function invert(result: Result): Result {
   switch (result) {
@@ -18,12 +18,12 @@ function invert(result: Result): Result {
   }
 }
 
-export function not<O, B>(child: Action<O, B>): Decorator<O, B> {
+export function not<O, B>(child: Task<O, B>): Decorator<O, B> {
   return new Not(child);
 }
 
 class Not<O, B> extends Decorator<O, B> {
-  constructor(child: Action<O, B>) {
+  constructor(child: Task<O, B>) {
     super(child);
   }
 

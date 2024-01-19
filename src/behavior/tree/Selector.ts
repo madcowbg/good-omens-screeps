@@ -18,7 +18,7 @@ export class Selector<O, B> extends Composite<O, B> {
     assert(!pastResult.stack.hasNoMore(), "can't resume if we have none");
 
     const i = pastResult.stack.popInt();
-    assert(this.children[i] != undefined, "task idx=${i} is not available, has ${children.size} only");
+    assert(this.children[i] !== undefined, `task idx=${i} is not available, has ${this.children.length} only`);
     const child = this.children[i];
     const result = child.resume(o, blackboard, pastResult); // resume the suspended child
     if (result === Result.SUCCESS) {

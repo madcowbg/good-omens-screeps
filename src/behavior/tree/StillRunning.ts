@@ -11,7 +11,7 @@ export class StillRunning extends Result {
   }
 
   restore(): Restore {
-    return new Restore(new Stack(Array.from(this.stack).reverse()));
+    return new Restore(new Stack(Array.from(this.stack)));
   }
 
   public override toString(): string {

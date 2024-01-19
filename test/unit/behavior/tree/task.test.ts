@@ -108,6 +108,38 @@ describe("behavior", () => {
         const thirdResult = tree.resume(null, null, (suspendedResult as StillRunning).restore());
         assert.equal(Result.FAIL, thirdResult, "expected failure");
       });
+
+      it("should resume from suspended state at proper step from a more complex tree", () => {
+        const taskThatFailsOnce = hardCodedTaskResults(Result.FAIL, bad); // this one won't run
+        const stillRunningOnceTask = providedTaskResults(
+          _ => new StillRunning(),
+          _ => Result.SUCCESS,
+          _ => Result.FAIL
+        );
+        const tree = new Selector([
+          new Sequence([
+            new Sequence([]),
+            new Selector([new Selector([]), not(taskThatFailsOnce)]),
+            new Selector([new Selector([]), stillRunningOnceTask, new Selector([])])
+          ])
+        ]);
+
+        assert.equal(
+          "Selector[Sequence[Sequence[],Selector[Selector[],[object Object]],Selector[Selector[],[object Object],Selector[]]]]",
+          tree.toString()
+        );
+
+        const suspendedResult = runOrResume(tree, null, null, undefined);
+        assert.equal("Suspended[ExpandingStack[1,2,0|]]", suspendedResult.toString());
+        assert.instanceOf(suspendedResult, StillRunning);
+        const suspendResult = suspendedResult as StillRunning;
+
+        const secondResult = runOrResume(tree, null, null, suspendResult.restore());
+        assert.equal(Result.SUCCESS, secondResult);
+
+        const thirdResult = runOrResume(tree, null, null, suspendResult.restore());
+        assert.equal(Result.FAIL, thirdResult);
+      });
     });
   });
 });
@@ -143,46 +175,6 @@ val dummyPersistence = object : Persistence<DummyData> {
 
 
 class BehaviorTreeTest {
-
-
-    @Test
-    fun behavior_tree_resume_resumes_from_suspend_state_more_complex_tree() {
-        val taskThatFailsOnce = hardCodedTaskResults<Any?, Any?>(Result.FAIL, bad) // this one won't run
-        val stillRunningOnceTask =
-            providedTaskResults<Any?, Any?>(
-                { _, _ -> StillRunning() },
-                { _, _ -> Result.SUCCESS },
-                { _, _ -> Result.FAIL })
-        val tree = Selector(
-            Sequence(
-                Sequence(),
-                Selector(
-                    Selector(), !taskThatFailsOnce
-                ),
-                Selector(
-                    Selector(), stillRunningOnceTask, Selector()
-                )
-            )
-        )
-
-        assertEquals(
-            "Selector[Sequence[Sequence[], Selector[Selector[], [object Object]], Selector[Selector[], [object Object], Selector[]]]]",
-            tree.toString()
-        )
-
-        val suspendedResult = tree.runOrResume(null, null, null)
-        assertEquals("Suspended[ExpandingStack[AB@|0,1,2]]", suspendedResult.toString())
-        assertNotNull(suspendedResult.asStillRunning())
-        val suspendResult = suspendedResult.asStillRunning()!!
-
-        println(suspendResult)
-        val secondResult = tree.runOrResume(null, null, suspendResult.restore())
-        assertEquals(Result.SUCCESS, secondResult)
-        println(suspendResult)
-
-        val thirdResult = tree.runOrResume(null, null, suspendResult.restore())
-        assertEquals(Result.FAIL, thirdResult)
-    }
 
     @Test
     fun behavior_tree_with_complex_tree_serializes_and_deserializes_correctly() {

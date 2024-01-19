@@ -14,5 +14,5 @@ export function runOrResume<Receiver, Board>(
   blackboard: Board,
   prevResult?: Restore
 ): Result {
-  return prevResult == null ? task.run(o, blackboard) : task.resume(o, blackboard, prevResult);
+  return prevResult == undefined ? task.run(o, blackboard) : task.resume(o, blackboard, prevResult);
 }
