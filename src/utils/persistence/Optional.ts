@@ -9,7 +9,7 @@ export class Optional<Type> implements Persistence<Type | undefined> {
     this.child = child;
   }
 
-  encode(value?: Type): string {
+  public encode(value?: Type): string {
     if (value == undefined) {
       return "-";
     } else {
@@ -17,7 +17,7 @@ export class Optional<Type> implements Persistence<Type | undefined> {
     }
   }
 
-  decode(encoded: EncodedStream): Type | undefined {
+  public decode(encoded: EncodedStream): Type | undefined {
     switch (encoded.pop(1)) {
       case "-":
         return undefined;
