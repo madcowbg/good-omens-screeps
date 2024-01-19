@@ -5,11 +5,26 @@ import { assert } from "chai";
 import { Sequence } from "../../../../src/behavior/tree/Sequence";
 import { Selector } from "../../../../src/behavior/tree/Selector";
 import { not } from "../../../../src/behavior/tree/Not";
+import { Task, runOrResume } from "behavior/tree/Task";
+import { Restore } from "behavior/tree/Restore";
 
 const successTask = new Action<any, any>((o, b) => Result.SUCCESS);
 const failTask = new Action<any, any>((o, b) => Result.FAIL);
 const stillRunningTask = new Action<any, any>((o, b) => new StillRunning());
 const bad: Result = {};
+
+function hardCodedTaskResults<O, B>(...toReturn: Result[]): Task<O, B> {
+  const results = Array.from(toReturn);
+  results.reverse();
+  assert(results.length > 0);
+  return new Action((o, b): Result => {
+    if (results.length > 1) {
+      return results.pop()!;
+    } else {
+      return results[0];
+    }
+  });
+}
 
 describe("behavior", () => {
   describe("tree", () => {
@@ -43,6 +58,23 @@ describe("behavior", () => {
         assert.equal(Result.FAIL, not(successTask).run(null, null));
         assert.equal(Result.SUCCESS, not(failTask).run(null, null));
         assert.instanceOf(not(stillRunningTask).run(null, null), StillRunning);
+      });
+    });
+
+    describe("Task", () => {
+      it("should behave like whatever sequence it wraps", () => {
+        const tree = hardCodedTaskResults(new StillRunning(), Result.SUCCESS, Result.FAIL);
+
+        assert.equal("[object Object]", tree.toString());
+        const res = runOrResume(tree, null, null, undefined);
+        assert.equal("Suspended[ExpandingStack[|]]", res.toString());
+        const suspendResult: Restore = (res as StillRunning).restore();
+
+        const secondResult = runOrResume(tree, null, null, suspendResult);
+        assert.equal(Result.SUCCESS, secondResult);
+
+        const thirdResult = runOrResume(tree, null, null, suspendResult);
+        assert.equal(Result.FAIL, thirdResult);
       });
     });
   });
@@ -88,32 +120,7 @@ private fun <O, B> providedTaskResults(vararg toReturn: (Task<O, B>, B) -> Resul
     }
 }
 
-internal fun <O, B> hardCodedTaskResults(vararg toReturn: Result): Task<O, B> {
-    check(toReturn.isNotEmpty())
-    val results = ArrayDeque<Result>().apply { addAll(toReturn) }
-    return Action<O, B> { _, _ -> if (results.size > 1) results.removeFirst() else toReturn.last() }
-}
-
 class BehaviorTreeTest {
-
-
-
-    @Test
-    fun behavior_tree_wrapped_task_behaves_like_whatever_it_wraps() {
-        val tree = hardCodedTaskResults<Any?, Any?>(StillRunning(), Result.SUCCESS, Result.FAIL)
-
-        assertEquals("[object Object]", tree.toString())
-        val res = tree.runOrResume(null, null, null)
-        assertEquals("Suspended[ExpandingStack[|]]", res.toString())
-        val suspendResult: Restore = res.asStillRunning()!!.restore()
-
-        val secondResult = tree.runOrResume(null, null, suspendResult)
-        assertEquals(Result.SUCCESS, secondResult)
-
-        val thirdResult = tree.runOrResume(null, null, suspendResult)
-        assertEquals(Result.FAIL, thirdResult)
-    }
-
 
     @Test
     fun behavior_tree_resume_resumes_from_suspend_state() {

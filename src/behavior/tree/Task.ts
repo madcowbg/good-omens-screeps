@@ -12,7 +12,7 @@ export function runOrResume<Receiver, Board>(
   task: Task<Receiver, Board>,
   o: Receiver,
   blackboard: Board,
-  prevResult: Restore | undefined
+  prevResult?: Restore
 ): Result {
   return prevResult == null ? task.run(o, blackboard) : task.resume(o, blackboard, prevResult);
 }
