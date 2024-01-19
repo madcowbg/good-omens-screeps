@@ -16,3 +16,13 @@ export const SmallPositiveIntPersistence: Persistence<number> = {
     return encoded.pop(1).charCodeAt(0) - CHAR_ENCODING_OFFSET;
   }
 };
+
+export const StringPersistence: Persistence<string> = {
+  encode(value: string): string {
+    return SmallPositiveIntPersistence.encode(value.length) + value;
+  },
+  decode(encoded: EncodedStream): string {
+    const size = SmallPositiveIntPersistence.decode(encoded);
+    return encoded.pop(size);
+  }
+};

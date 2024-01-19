@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { IllegalArgumentError } from "./error/IllegalArgumentError";
 import { decodeFromString, encodeToString } from "./Persistence";
-import { SmallPositiveIntPersistence } from "./SmallPositiveIntPersistence";
+import { SmallPositiveIntPersistence, StringPersistence } from "./BasicPersistence";
 
 describe("SmallPositiveIntPersistence", () => {
   it("should serialize and deserialize as expected", () => {
@@ -21,6 +21,21 @@ describe("SmallPositiveIntPersistence", () => {
   });
 });
 
+describe("StringPersistence", () => {
+  it("should produce the expected serialized values and deserialize properly", () => {
+    const vals = ["", "!", "ada", "0718蛠n2", "124908168905689012096840168923689012093610924761209837612073896"];
+
+    const encoded = _.map(vals, it => encodeToString(StringPersistence, it));
+    assert.deepEqual(
+      "@,A!,Cada,G0718蛠n2,\u007F124908168905689012096840168923689012093610924761209837612073896",
+      encoded.toString()
+    );
+
+    const decoded = _.map(encoded, it => decodeFromString(StringPersistence, it));
+    assert.deepEqual(vals, decoded);
+  });
+});
+
 /*
 package utils
 
@@ -30,23 +45,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class PersistenceTest {
-  it("should produce the expected serialized values and deserialize properly", () => {
-    const vals = ["", "!", "ada", "0718蛠n2", "124908168905689012096840168923689012093610924761209837612073896"]
-
-    const encoded = _.map(vals, encodeToString(StringPersistence, it))
-    assertEquals(
-      "[@, A!, Cada, G0718蛠n2, \u007F124908168905689012096840168923689012093610924761209837612073896]",
-      encoded.toString()
-    )
-
-    val decoded = encoded.map { StringPersistence.decodeFullString(it) }
-    assertContentEquals(vals, decoded)
-  })
-
-    @Test
-    fun string_persistence_serializes_and_deserializes_as_expected() {
-
-    }
 
     @Test
     fun map_persistence_int_int_serializes_and_deserializes_as_expected() {
