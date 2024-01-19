@@ -1,9 +1,9 @@
 import { assert } from "chai";
-import { IllegalArgumentError } from "./error/IllegalArgumentError";
-import { decodeFullString, encodeToString } from "./Persistence";
-import { SmallPositiveIntPersistence, StringPersistence } from "./BasicPersistence";
-import { MapPersistence } from "./MapPersistence";
-import { Optional } from "./Optional";
+import { IllegalArgumentError } from "../../../../src/utils/persistence/error/IllegalArgumentError";
+import { decodeFullString, encodeToString } from "../../../../src/utils/persistence/Persistence";
+import { SmallPositiveIntPersistence, StringPersistence } from "../../../../src/utils/persistence/BasicPersistence";
+import { MapPersistence } from "../../../../src/utils/persistence/MapPersistence";
+import { Optional } from "../../../../src/utils/persistence/Optional";
 
 describe("SmallPositiveIntPersistence", () => {
   it("should serialize and deserialize as expected", () => {
