@@ -3,6 +3,7 @@ import { IllegalArgumentError } from "./error/IllegalArgumentError";
 import { decodeFullString, encodeToString } from "./Persistence";
 import { SmallPositiveIntPersistence, StringPersistence } from "./BasicPersistence";
 import { MapPersistence } from "./MapPersistence";
+import { Optional } from "./Optional";
 
 describe("SmallPositiveIntPersistence", () => {
   it("should serialize and deserialize as expected", () => {
@@ -77,6 +78,19 @@ describe("MapPersistence", () => {
   });
 });
 
+describe("Optional", () => {
+  it("should serialize and deserialize properly", () => {
+    const valStringOrNull = [undefined, "123123", ""];
+    const nullablePersistence = new Optional(StringPersistence);
+
+    const encoded = _.map(valStringOrNull, it => encodeToString(nullablePersistence, it));
+    assert.equal("-,+F123123,+@", encoded.toString());
+
+    const decoded = _.map(encoded, it => decodeFullString(nullablePersistence, it));
+    assert.deepEqual(valStringOrNull, decoded);
+  });
+});
+
 /*
 package utils
 
@@ -86,18 +100,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class PersistenceTest {
-
-    @Test
-    fun persisting_nulls_serialize_and_deserialize_properly() {
-        val valStringOrNull = listOf(null, "123123", "")
-        val nullablePersistence = NullOr(StringPersistence)
-
-        val encoded = valStringOrNull.map { nullablePersistence.encodeToString(it) }
-        assertEquals("[0, 1F123123, 1@]", encoded.toString())
-
-        val decoded = encoded.map { nullablePersistence.decodeFullString(it) }
-        assertContentEquals(valStringOrNull, decoded)
-    }
 
     @Test
     fun persisting_sets_serialize_and_deserialize_properly() {
