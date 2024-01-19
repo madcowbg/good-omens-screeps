@@ -4,34 +4,47 @@ import { Result } from "../../../../src/behavior/tree/Result";
 import { assert } from "chai";
 import { Sequence } from "../../../../src/behavior/tree/Sequence";
 import { Selector } from "../../../../src/behavior/tree/Selector";
+import { not } from "../../../../src/behavior/tree/Not";
 
 const successTask = new Action<any, any>((o, b) => Result.SUCCESS);
 const failTask = new Action<any, any>((o, b) => Result.FAIL);
 const stillRunningTask = new Action<any, any>((o, b) => new StillRunning());
 const bad: Result = {};
 
-describe("Sequence", () => {
-  it("should return failure on running if one is not success", () => {
-    assert.equal(Result.SUCCESS, new Sequence([successTask, successTask, successTask]).run(null, null));
-    assert.equal(Result.FAIL, new Sequence([successTask, successTask, failTask]).run(null, null));
-    assert.equal(Result.FAIL, new Sequence([failTask, successTask, successTask]).run(null, null));
-    assert.equal(Result.FAIL, new Sequence([failTask, successTask, stillRunningTask]).run(null, null));
-    assert.instanceOf(new Sequence([stillRunningTask, successTask, failTask]).run(null, null), StillRunning);
-  });
-});
+describe("behavior", () => {
+  describe("tree", () => {
+    describe("Sequence", () => {
+      it("should return failure on running if one is not success", () => {
+        assert.equal(Result.SUCCESS, new Sequence([successTask, successTask, successTask]).run(null, null));
+        assert.equal(Result.FAIL, new Sequence([successTask, successTask, failTask]).run(null, null));
+        assert.equal(Result.FAIL, new Sequence([failTask, successTask, successTask]).run(null, null));
+        assert.equal(Result.FAIL, new Sequence([failTask, successTask, stillRunningTask]).run(null, null));
+        assert.instanceOf(new Sequence([stillRunningTask, successTask, failTask]).run(null, null), StillRunning);
+      });
+    });
 
-describe("Selector", () => {
-  it("should return success on first non-failing", () => {
-    assert.equal(Result.SUCCESS, new Selector([successTask, successTask, successTask]).run(null, null));
-    assert.equal(Result.SUCCESS, new Selector([successTask, successTask, failTask]).run(null, null));
-    assert.equal(Result.SUCCESS, new Selector([failTask, successTask, successTask]).run(null, null));
-    assert.instanceOf(new Selector([stillRunningTask, successTask, successTask]).run(null, null), StillRunning);
-    assert.equal(Result.FAIL, new Selector([failTask, failTask]).run(null, null));
-    assert.equal(
-      Result.SUCCESS,
-      new Selector([failTask, successTask, stillRunningTask, successTask, failTask]).run(null, null)
-    );
-    assert.instanceOf(new Selector([failTask, stillRunningTask, successTask]).run(null, null), StillRunning);
+    describe("Selector", () => {
+      it("should return success on first non-failing", () => {
+        assert.equal(Result.SUCCESS, new Selector([successTask, successTask, successTask]).run(null, null));
+        assert.equal(Result.SUCCESS, new Selector([successTask, successTask, failTask]).run(null, null));
+        assert.equal(Result.SUCCESS, new Selector([failTask, successTask, successTask]).run(null, null));
+        assert.instanceOf(new Selector([stillRunningTask, successTask, successTask]).run(null, null), StillRunning);
+        assert.equal(Result.FAIL, new Selector([failTask, failTask]).run(null, null));
+        assert.equal(
+          Result.SUCCESS,
+          new Selector([failTask, successTask, stillRunningTask, successTask, failTask]).run(null, null)
+        );
+        assert.instanceOf(new Selector([failTask, stillRunningTask, successTask]).run(null, null), StillRunning);
+      });
+    });
+
+    describe("Not", () => {
+      it("should return the inverse of the underlying result", () => {
+        assert.equal(Result.FAIL, not(successTask).run(null, null));
+        assert.equal(Result.SUCCESS, not(failTask).run(null, null));
+        assert.instanceOf(not(stillRunningTask).run(null, null), StillRunning);
+      });
+    });
   });
 });
 
@@ -84,13 +97,6 @@ internal fun <O, B> hardCodedTaskResults(vararg toReturn: Result): Task<O, B> {
 class BehaviorTreeTest {
 
 
-
-    @Test
-    fun running_not_results_in_inverse_result() {
-        assertEquals(Result.FAIL, !successTask.run(null, null))
-        assertEquals(Result.SUCCESS, !failTask.run(null, null))
-        assertNotNull((!stillRunningTask.run(null, null)).asStillRunning())
-    }
 
     @Test
     fun behavior_tree_wrapped_task_behaves_like_whatever_it_wraps() {
