@@ -14,14 +14,25 @@ const stillRunningTask = new Action<any, any>((o, b) => new StillRunning());
 const bad: Result = {};
 
 function hardCodedTaskResults<O, B>(...toReturn: Result[]): Task<O, B> {
-  const results = Array.from(toReturn);
-  results.reverse();
+  const results = Array.from(toReturn).reverse();
   assert(results.length > 0);
   return new Action((o, b): Result => {
     if (results.length > 1) {
       return results.pop()!;
     } else {
       return results[0];
+    }
+  });
+}
+
+function providedTaskResults<O, B>(...toReturn: ((b: B) => Result)[]): Task<O, B> {
+  assert(toReturn.length > 0);
+  const results = Array.from(toReturn).reverse();
+  return new Action<O, B>((o, d): Result => {
+    if (results.length > 1) {
+      return results.pop()!(d);
+    } else {
+      return results[0](d);
     }
   });
 }
@@ -76,6 +87,27 @@ describe("behavior", () => {
         const thirdResult = runOrResume(tree, null, null, suspendResult);
         assert.equal(Result.FAIL, thirdResult);
       });
+
+      it("should resume from suspended state at proper step", () => {
+        const taskThatSucceedsOnce = hardCodedTaskResults(Result.SUCCESS, bad); // this one won't run
+        const stillRunningOnceTask = providedTaskResults(
+          _ => new StillRunning(),
+          _ => Result.SUCCESS,
+          _ => Result.FAIL
+        );
+        const tree = new Sequence([taskThatSucceedsOnce, stillRunningOnceTask]);
+        assert.equal("Sequence[[object Object],[object Object]]", tree.toString());
+
+        const suspendedResult = runOrResume(tree, null, null);
+        assert.equal("Suspended[ExpandingStack[1|]]", suspendedResult.toString());
+        assert.instanceOf(suspendedResult, StillRunning);
+
+        const secondResult = tree.resume(null, null, (suspendedResult as StillRunning).restore());
+        assert.equal(Result.SUCCESS, secondResult, "expected success");
+
+        const thirdResult = tree.resume(null, null, (suspendedResult as StillRunning).restore());
+        assert.equal(Result.FAIL, thirdResult, "expected failure");
+      });
     });
   });
 });
@@ -109,41 +141,9 @@ val dummyPersistence = object : Persistence<DummyData> {
     }
 }
 
-private fun <O, B> providedTaskResults(vararg toReturn: (Task<O, B>, B) -> Result): Task<O, B> {
-    check(toReturn.isNotEmpty())
-    val results = ArrayDeque<(Task<O, B>, B) -> Result>().apply { addAll(toReturn) }
-    return Action<O, B> { _, d ->
-        if (results.size > 1) results.removeFirst()(this, d) else toReturn.last()(
-            this,
-            d
-        )
-    }
-}
 
 class BehaviorTreeTest {
 
-    @Test
-    fun behavior_tree_resume_resumes_from_suspend_state() {
-        val taskThatSucceedsOnce = hardCodedTaskResults<Any?, Any?>(Result.SUCCESS, bad)// this one won't run
-        val stillRunningOnceTask =
-            providedTaskResults<Any?, Any?>(
-                { _, _ -> StillRunning() },
-                { _, _ -> Result.SUCCESS },
-                { _, _ -> Result.FAIL })
-        val tree = (taskThatSucceedsOnce then stillRunningOnceTask)
-
-        assertEquals("Sequence[[object Object], [object Object]]", tree.toString())
-
-        val suspendedResult = tree.runOrResume(null, null, null)
-        assertEquals("Suspended[ExpandingStack[A|0]]", suspendedResult.toString())
-        assertNotNull(suspendedResult.asStillRunning())
-
-        val secondResult = tree.resume(null, null, suspendedResult.asStillRunning()!!.restore())
-        assertEquals(Result.SUCCESS, secondResult)
-
-        val thirdResult = tree.resume(null, null, suspendedResult.asStillRunning()!!.restore())
-        assertEquals(Result.FAIL, thirdResult)
-    }
 
     @Test
     fun behavior_tree_resume_resumes_from_suspend_state_more_complex_tree() {

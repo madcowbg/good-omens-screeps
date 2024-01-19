@@ -18,7 +18,7 @@ export class Sequence<O, B> extends Composite<O, B> {
     assert(!pastResult.stack.hasNoMore(), "can't resume if we have none");
 
     const i = pastResult.stack.popInt(); // one less...
-    assert(i in this.children.keys(), "task idx=${i} is not available");
+    assert(this.children[i] !== undefined, `task idx=${i} is not available`);
 
     const child = this.children[i];
     const result = child.resume(o, blackboard, pastResult); // resume the suspended child
