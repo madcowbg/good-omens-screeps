@@ -1,7 +1,8 @@
 import { assert } from "chai";
 import { IllegalArgumentError } from "./error/IllegalArgumentError";
-import { decodeFromString, encodeToString } from "./Persistence";
+import { decodeFullString, encodeToString } from "./Persistence";
 import { SmallPositiveIntPersistence, StringPersistence } from "./BasicPersistence";
+import { MapPersistence } from "./MapPersistence";
 
 describe("SmallPositiveIntPersistence", () => {
   it("should serialize and deserialize as expected", () => {
@@ -10,7 +11,7 @@ describe("SmallPositiveIntPersistence", () => {
     const encoded: string[] = _.map(vals, it => encodeToString(SmallPositiveIntPersistence, it));
     assert.equal("@, ,A,¤,蛠", encoded.toString());
 
-    const decoded = _.map(encoded, it => decodeFromString(SmallPositiveIntPersistence, it));
+    const decoded = _.map(encoded, it => decodeFullString(SmallPositiveIntPersistence, it));
     assert.deepEqual(vals, decoded);
   });
 
@@ -31,8 +32,48 @@ describe("StringPersistence", () => {
       encoded.toString()
     );
 
-    const decoded = _.map(encoded, it => decodeFromString(StringPersistence, it));
+    const decoded = _.map(encoded, it => decodeFullString(StringPersistence, it));
     assert.deepEqual(vals, decoded);
+  });
+});
+
+describe("MapPersistence", () => {
+  it("should serialize and deserialize as expected if map int to int", () => {
+    const valsIntToInt: Map<number, number>[] = [
+      new Map<number, number>(),
+      new Map([
+        [10, 1],
+        [1, 10]
+      ]),
+      new Map(_.map(_.range(1, 10 + 1), i => [i % 4, i])),
+      new Map(_.map(_.range(1, 10 + 1), i => [i, i % 4]))
+    ];
+    const mapIntInt = new MapPersistence(SmallPositiveIntPersistence, SmallPositiveIntPersistence);
+
+    const encoded = _.map(valsIntToInt, it => encodeToString(mapIntInt, it));
+    assert.equal(encoded.toString(), "@,BJAAJ,DAIBJCG@H,JAABBCCD@EAFBGCH@IAJB");
+
+    const decoded = _.map(encoded, it => decodeFullString(mapIntInt, it));
+    assert.deepEqual(decoded, valsIntToInt);
+  });
+
+  it("should serialize and deserialize as expected if string to int", () => {
+    const valsStringToInt: Map<string, number>[] = [
+      new Map<string, number>(),
+      new Map([
+        ["121", 1],
+        ["", 1312]
+      ]),
+      new Map(_.map(_.range(1, 10 + 1), i => [`${i % 4}${i % 4}`, i % 4])),
+      new Map(_.map(_.range(1, 10 + 1), i => [`${i}${i}`, i]))
+    ];
+
+    const mapStringInt = new MapPersistence(StringPersistence, SmallPositiveIntPersistence);
+    const encoded = _.map(valsStringToInt, it => encodeToString(mapStringInt, it));
+    assert.equal("@,BC121A@ՠ,DB11AB22BB33CB00@,JB11AB22BB33CB44DB55EB66FB77GB88HB99ID1010J", encoded.toString());
+
+    const decoded = _.map(encoded, it => decodeFullString(mapStringInt, it));
+    assert.deepEqual(decoded, valsStringToInt);
   });
 });
 
@@ -45,42 +86,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class PersistenceTest {
-
-    @Test
-    fun map_persistence_int_int_serializes_and_deserializes_as_expected() {
-        val valsIntToInt = listOf(
-            mapOf(),
-            mapOf(10 to 1, 1 to 10),
-            (1..10).associateBy { it % 4 })
-        val mapIntInt = MapPersistence(SmallPositiveIntPersistence, SmallPositiveIntPersistence)
-
-        val encoded = valsIntToInt.map { mapIntInt.encodeToString(it) }
-        assertEquals(
-            "[@, BAJAAAAAJ, DAAAIABAJACAGA@AH]",
-            encoded.toString()
-        )
-
-        val decoded = encoded.map { mapIntInt.decodeFullString(it) }
-        assertContentEquals(valsIntToInt, decoded)
-    }
-
-    @Test
-    fun map_persistence_string_int_serializes_and_deserializes_as_expected() {
-        val valsStringToInt = listOf(
-            mapOf(),
-            mapOf("121" to 1, "" to 1312),
-            (1..10).associateBy { it % 4 }.mapKeys { "$it$it" })
-        val mapStringInt = MapPersistence(StringPersistence, SmallPositiveIntPersistence)
-
-        val encoded = valsStringToInt.map { mapStringInt.encodeToString(it) }
-        assertEquals(
-            "[@, BDC121AAA@Aՠ, DGF1=91=9AIIH2=102=10AJGF3=73=7AGGF0=80=8AH]",
-            encoded.toString()
-        )
-
-        val decoded = encoded.map { mapStringInt.decodeFullString(it) }
-        assertContentEquals(valsStringToInt, decoded)
-    }
 
     @Test
     fun persisting_nulls_serialize_and_deserialize_properly() {

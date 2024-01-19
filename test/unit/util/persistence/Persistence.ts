@@ -10,6 +10,6 @@ export function encodeToString<Type>(persistence: Persistence<Type>, value: Type
   return persistence.encode(value);
 }
 
-export function decodeFromString<Type>(persistence: Persistence<Type>, encoded: string): Type {
+export function decodeFullString<Type>(persistence: Persistence<Type>, encoded: string): Type {
   return persistence.decode(new EncodedStream(encoded));
 }
