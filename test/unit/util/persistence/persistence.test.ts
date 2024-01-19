@@ -1,51 +1,7 @@
 import { assert } from "chai";
-
-const CHAR_ENCODING_OFFSET = 64;
-
-class EncodedStream {
-  private readonly encoded: string;
-  private idx = 0;
-
-  public constructor(encoded: string) {
-    this.encoded = encoded;
-  }
-
-  public pop(n: number): string {
-    assert(this.idx + n <= this.encoded.length, "not enough bytes left!");
-    const result = this.encoded.substring(this.idx, this.idx + n);
-    this.idx += n;
-    return result;
-  }
-}
-
-interface Persistence<Type> {
-  encode(value: Type): string;
-
-  decode(encoded: EncodedStream): Type;
-}
-
-class IllegalArgumentError extends Error {}
-
-const SmallPositiveIntPersistence: Persistence<number> = {
-  encode(value: number): string {
-    if (!(-32 <= value && value <= 34464)) {
-      throw new IllegalArgumentError(`${value} is not in -32 to 34464!`);
-    }
-    return String.fromCharCode(value + CHAR_ENCODING_OFFSET);
-  },
-
-  decode(encoded: EncodedStream): number {
-    return encoded.pop(1).charCodeAt(0) - CHAR_ENCODING_OFFSET;
-  }
-};
-
-function encodeToString<Type>(persistence: Persistence<Type>, value: Type): string {
-  return persistence.encode(value);
-}
-
-function decodeFromString<Type>(persistence: Persistence<Type>, encoded: string): Type {
-  return persistence.decode(new EncodedStream(encoded));
-}
+import { IllegalArgumentError } from "./error/IllegalArgumentError";
+import { decodeFromString, encodeToString } from "./Persistence";
+import { SmallPositiveIntPersistence } from "./SmallPositiveIntPersistence";
 
 describe("SmallPositiveIntPersistence", () => {
   it("should serialize and deserialize as expected", () => {
