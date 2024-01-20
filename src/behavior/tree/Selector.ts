@@ -50,3 +50,7 @@ export class Selector<O, B> extends Composite<O, B> {
     return Result.FAIL;
   }
 }
+
+export function selector<R, B>(...param: Task<R, B>[]): Selector<R, B> {
+  return new Selector<R, B>(Array.from(param));
+}

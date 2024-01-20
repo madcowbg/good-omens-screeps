@@ -52,3 +52,7 @@ export class Sequence<O, B> extends Composite<O, B> {
     return Result.SUCCESS;
   }
 }
+
+export function sequence<R, B>(...param: Task<R, B>[]): Sequence<R, B> {
+  return new Sequence<R, B>(Array.from(param));
+}

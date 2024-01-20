@@ -2,11 +2,16 @@ import { Action } from "../../../../src/behavior/tree/Action";
 import { StillRunning } from "../../../../src/behavior/tree/StillRunning";
 import { Result } from "../../../../src/behavior/tree/Result";
 import { assert } from "chai";
-import { Sequence } from "../../../../src/behavior/tree/Sequence";
-import { Selector } from "../../../../src/behavior/tree/Selector";
+import { Sequence, sequence } from "../../../../src/behavior/tree/Sequence";
+import { Selector, selector } from "../../../../src/behavior/tree/Selector";
 import { not } from "../../../../src/behavior/tree/Not";
 import { Task, runOrResume } from "behavior/tree/Task";
 import { Restore } from "behavior/tree/Restore";
+import { Persistence, decodeFullString, encodeToString } from "../../../../src/utils/persistence/Persistence";
+import { StringPersistence } from "../../../../src/utils/persistence/BasicPersistence";
+import { EncodedStream } from "../../../../src/utils/persistence/EncodedStream";
+import { FocusedOnPersistently } from "../../../../src/behavior/tree/FocusedOnPersistently";
+import { NumberPersistence } from "../../../../src/utils/persistence/NumberPersistence";
 
 const successTask = new Action<any, any>((o, b) => Result.SUCCESS);
 const failTask = new Action<any, any>((o, b) => Result.FAIL);
@@ -144,99 +149,82 @@ describe("behavior", () => {
   });
 });
 
+interface DummyData {
+  field1: string;
+  field2: number;
+}
+
+const dummyPersistence: Persistence<DummyData> = {
+  encode(t: DummyData) {
+    return StringPersistence.encode(t.field1) + NumberPersistence.encode(t.field2);
+  },
+
+  decode(e: EncodedStream): DummyData {
+    return {
+      field1: StringPersistence.decode(e),
+      field2: NumberPersistence.decode(e)
+    };
+  }
+};
+
+describe("FocusedOnPersistently", () => {
+  it("should serialize and deserialize complex tree suspensions correctly", () => {
+    const taskThatFailsOnce = hardCodedTaskResults(Result.FAIL, bad); // this one won't run
+    const dummyObj: DummyData = { field1: "ala", field2: -54854 };
+
+    const stillRunningOnceTask = providedTaskResults<any, DummyData>(
+      d => {
+        assert(d === dummyObj, "$d");
+        return new StillRunning();
+      },
+      d => {
+        assert(d.field1 === "ala", `restored field 1 is incorrect as ${d.field1}`);
+        assert(d.field2 === -54854, `restored field 2 is incorrect as ${d.field1}`);
+        return Result.SUCCESS;
+      },
+      d => Result.FAIL
+    );
+
+    const tree: Task<any, any> = selector(
+      sequence(
+        sequence(),
+        selector(selector(), not(taskThatFailsOnce)),
+        selector(
+          selector(),
+          new FocusedOnPersistently(dummyPersistence, (o, f) => dummyObj, stillRunningOnceTask),
+          selector()
+        )
+      )
+    );
+
+    assert.equal(
+      "Selector[Sequence[Sequence[],Selector[Selector[],[object Object]],Selector[Selector[],Scoped[[object Object]],Selector[]]]]",
+      tree.toString()
+    );
+
+    const result = runOrResume(tree, null, null, undefined);
+    // assert.equal("Suspended[ExpandingStack[CalaF-54854AB@|0,11,12,13]]", result.toString());
+    assert.equal("Suspended[ExpandingStack[CalaF-54854,1,2,0|]]", result.toString());
+    assert.instanceOf(result, StillRunning);
+
+    const suspendedResult = result as StillRunning;
+    const serialized: string = encodeToString(Restore.RestorePersistence, suspendedResult.restore());
+    assert.equal(serialized, 'U["CalaF-54854",1,2,0]');
+
+    const deserialized = decodeFullString(Restore.RestorePersistence, serialized);
+    // assert.equal(deserialized.toString(), "Restored[Stack[@BACalaF-54854|0]]");
+    assert.equal(deserialized.toString(), "Restored[Stack[CalaF-54854,1,2,0]]");
+
+    const secondResult = tree.resume(null, null, deserialized);
+    assert.equal(Result.SUCCESS, secondResult);
+  });
+});
+
 /*
-package behavior.tree
-
-import screeps.utils.unsafe.jsObject
-import utils.*
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
-
-
-external interface DummyData {
-    var field1: String
-    var field2: Int
-}
-
-val dummyPersistence = object : Persistence<DummyData> {
-    override fun encode(t: DummyData, b: StringBuilder) {
-        StringPersistence.encode(t.field1, b)
-        LargeIntPersistence.encode(t.field2, b)
-    }
-
-    override fun decode(e: EncodedDataStream): DummyData {
-        val f1 = StringPersistence.decode(e)
-        val f2 = LargeIntPersistence.decode(e)
-        return jsObject { field1 = f1; field2 = f2 }
-    }
-}
 
 
 class BehaviorTreeTest {
 
-    @Test
-    fun behavior_tree_with_complex_tree_serializes_and_deserializes_correctly() {
-        val taskThatFailsOnce = hardCodedTaskResults<Any?, Unit?>(Result.FAIL, bad)// this one won't run
-        val dummyObj = jsObject<DummyData> {
-            field1 = "ala"; field2 = -54854
-        }
-
-        val stillRunningOnceTask =
-            providedTaskResults<Any?, DummyData>(
-                { _, d ->
-                    check(d == dummyObj) { "$d" }
-                    StillRunning()
-                },
-                { _, d ->
-                    check(d.field1 == "ala") { "restored field 1 is incorrect as ${d.field1}" }
-                    check(d.field2 == -54854) { "restored field 2 is incorrect as ${d.field1}" }
-                    Result.SUCCESS
-                },
-                { _, _ -> Result.FAIL })
-
-        val tree = Selector(
-            Sequence(
-                Sequence(),
-                Selector(
-                    Selector(), !taskThatFailsOnce
-                ),
-                Selector(
-                    Selector(),
-                    (Scoped<Any?, Unit?, DummyData>(dummyPersistence) { _, _ ->
-                        dummyObj
-                    } then stillRunningOnceTask),
-                    Selector()
-                )
-            )
-        )
-
-        assertEquals(
-            "Selector[Sequence[Sequence[], Selector[Selector[], [object Object]], Selector[Selector[], Scoped[[object Object]], Selector[]]]]",
-            tree.toString()
-        )
-
-        val result = tree.runOrResume(null, null, null)
-        assertEquals(
-            "Suspended[ExpandingStack[CalaF-54854AB@|0,11,12,13]]",
-            result.toString()
-        )
-        assertNotNull(result.asStillRunning())
-
-        val suspendedResult = result.asStillRunning()!!
-        val serialized: String = RestorePersistence.encodeToString(suspendedResult.restore())
-        assertEquals("@N@BACalaF-54854", serialized)
-
-        val deserialized = RestorePersistence.decodeFullString(serialized)
-        assertEquals(
-            "Restored[Stack[@BACalaF-54854|0]]",
-            deserialized.toString()
-        )
-
-        val secondResult = tree.resume(null, null, deserialized)
-        assertEquals(Result.SUCCESS, secondResult)
-    }
 
     @Test
     fun retry_decorator_repeats_on_failure_max_times() {
